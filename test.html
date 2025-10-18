@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>TestSite — Pruebas de Web Scraping</title>
+  <meta name="description" content="Sitio estático pensado para pruebas de web scraping: formularios, contenidos renderizados en servidor y con JS, paginación, tablas y APIs simuladas." />
+  <meta name="robots" content="noindex, nofollow" />
+  <style>
+    :root{--bg:#0f1724;--card:#111827;--accent:#7c3aed;--muted:#9ca3af;--glass:rgba(255,255,255,0.03)}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#071024 0%, #07102a 100%);color:#e6eef8;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial}
+    .wrap{max-width:980px;margin:28px auto;padding:20px}
+    header{display:flex;justify-content:space-between;align-items:center}
+    h1{margin:0;font-size:20px}
+    .card{background:var(--card);padding:18px;border-radius:12px;box-shadow:0 6px 18px rgba(2,6,23,.6);margin-top:14px}
+    form{display:grid;gap:10px;max-width:420px}
+    input,button,select,textarea{padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit}
+    button{cursor:pointer;background:linear-gradient(90deg,var(--accent),#5b21b6);border:none;color:white}
+    .row{display:flex;gap:10px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px;border-bottom:1px solid rgba(255,255,255,0.03);text-align:left}
+    .muted{color:var(--muted);font-size:13px}
+    .hidden{display:none}
+    .badge{display:inline-block;padding:4px 8px;border-radius:999px;background:var(--glass);font-size:12px}
+    .center{display:flex;justify-content:center;align-items:center}
+    .loader{width:18px;height:18px;border-radius:50%;border:3px solid rgba(255,255,255,0.06);border-top-color:var(--accent);animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    nav a{color:var(--muted);margin-left:10px;text-decoration:none}
+    footer{margin-top:18px;color:var(--muted);font-size:13px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>TestSite — Web Scraping Playground</h1>
+        <div class="muted">Proyecto para pruebas: login falso, tablas, paginación y contenido cargado por JS</div>
+      </div>
+      <nav>
+        <a href="#/">Inicio</a>
+        <a href="#/login">Login</a>
+        <a href="#/dashboard">Dashboard</a>
+        <a href="#/docs">Scraping</a>
+      </nav>
+    </header>
+
+    <!-- HOME (server-rendered content) -->
+    <main id="app">
+
+      <section id="home" class="card" data-route>
+        <h2>Bienvenido — Contenido "servidor"</h2>
+        <p class="muted">Esta sección está presente en el HTML al cargar la página — ideal para scraping con requests/BeautifulSoup.</p>
+
+        <h3>Usuarios (tabla estática)</h3>
+        <table aria-describedby="userstable">
+          <thead>
+            <tr><th>ID</th><th>Nombre</th><th>Email</th><th>Rol</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td>Ana López</td><td>ana@example.com</td><td>admin</td></tr>
+            <tr><td>2</td><td>Carlos Ruiz</td><td>carlos@example.com</td><td>editor</td></tr>
+            <tr><td>3</td><td>María Fernández</td><td>maria@example.com</td><td>viewer</td></tr>
+            <tr><td>4</td><td>Jorge Pérez</td><td>jorge@example.com</td><td>viewer</td></tr>
+          </tbody>
+        </table>
+
+        <p class="muted">Pruébalo con <code>requests.get('https://tu-github.io/repo/')</code> y parsea la tabla.</p>
+      </section>
+
+      <!-- LOGIN: formulario estático pero con autenticación simulada en JS -->
+      <section id="login" class="card hidden" data-route>
+        <h2>Login</h2>
+        <p class="muted">Formulario de login. Las credenciales válidas para probar son <code>user: test</code> y <code>pass: 1234</code>.</p>
+
+        <form id="loginForm" autocomplete="off">
+          <input type="text" name="username" id="username" placeholder="Usuario" required />
+          <input type="password" name="password" id="password" placeholder="Contraseña" required />
+          <input type="hidden" name="csrf_token" id="csrf_token" value="b2f5e9c8" />
+          <div class="row">
+            <button type="submit">Entrar</button>
+            <button type="button" id="demoFill">Autocompletar</button>
+          </div>
+        </form>
+
+        <div id="loginMsg" class="muted" role="status"></div>
+      </section>
+
+      <!-- DASHBOARD: mezcla de contenido estático y dinámico -->
+      <section id="dashboard" class="card hidden" data-route>
+        <h2>Dashboard — Contenido mixto</h2>
+        <p class="muted">Contenido inicial presente en HTML + sección de <em>comments</em> que se agrega con JavaScript después de 2s (simula contenido renderizado por client).</p>
+
+        <h3>Resumen rápido</h3>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <div class="badge">Posts: <strong>12</strong></div>
+          <div class="badge">Comentarios: <strong id="commentsCount">—</strong></div>
+          <div class="badge">Pendientes: <strong>3</strong></div>
+        </div>
+
+        <h3 style="margin-top:14px">Últimos posts (paginated)</h3>
+        <div id="postsList">
+          <!-- primera página renderizada en HTML -->
+          <ul>
+            <li data-post-id="101">Cómo aprender scraping (parte 1)</li>
+            <li data-post-id="102">Buenas prácticas con requests</li>
+            <li data-post-id="103">Evitar bloqueos simples</li>
+          </ul>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button id="loadMore">Cargar más</button>
+          <div id="loading" class="center hidden"><div class="loader"></div></div>
+        </div>
+
+        <h3 style="margin-top:18px">Comentarios (cargados por JS)</h3>
+        <div id="comments" class="muted">Cargando comentarios dinámicos...</div>
+
+      </section>
+
+      <!-- DOCS: instrucciones para quien hace scraping -->
+      <section id="docs" class="card hidden" data-route>
+        <h2>Cómo probar scraping aquí</h2>
+        <ol>
+          <li>Para probar scraping <strong>estático</strong>, usa <code>requests.get</code> y parsea la tabla de usuarios o la lista de posts que están en el HTML inicial.</li>
+          <li>Para probar scraping <strong>con ejecución de JS</strong>, usa Playwright o Selenium — la sección "Comentarios" se añade por JavaScript después de 2 segundos.</li>
+          <li>El formulario de login incluye un campo oculto <code>csrf_token</code> y los nombres de los inputs son <code>username</code> y <code>password</code>. Esto permite practicar envíos simulados y técnicas de scraping que manejan sesiones (cookies).</li>
+          <li>El botón "Cargar más" agrega más posts mediante JS (simula paginación dinámica). Para obtener esos datos con requests tendrás que conocer el endpoint — en este sitio está solo disponible si ejecutas JS.</li>
+        </ol>
+
+        <h3>Credenciales de prueba</h3>
+        <p class="muted">Usuario: <code>test</code> — Contraseña: <code>1234</code></p>
+      </section>
+
+    </main>
+
+    <footer class="muted">Generado por TestSite • Autor: Erick Edilzer Apén Cux • Para pruebas locales o GitHub Pages</footer>
+  </div>
+
+  <script>
+    // RUTAS HASH-SIMPLE
+    function showRoute(){
+      const hash = location.hash.replace('#','') || '/';
+      document.querySelectorAll('[data-route]').forEach(el=>el.classList.add('hidden'));
+      if(hash === '/' ) document.getElementById('home').classList.remove('hidden');
+      if(hash.startsWith('/login')) document.getElementById('login').classList.remove('hidden');
+      if(hash.startsWith('/dashboard')) document.getElementById('dashboard').classList.remove('hidden');
+      if(hash.startsWith('/docs')) document.getElementById('docs').classList.remove('hidden');
+    }
+    window.addEventListener('hashchange', showRoute);
+    showRoute();
+
+    // LOGIN SIMULADO (solo front-end) — útil para practicar envío de formularios
+    document.getElementById('loginForm').addEventListener('submit', function(e){
+      e.preventDefault();
+      const u = document.getElementById('username').value.trim();
+      const p = document.getElementById('password').value.trim();
+      const msg = document.getElementById('loginMsg');
+      if(u === 'test' && p === '1234'){
+        msg.textContent = 'Login correcto — redirigiendo al dashboard...';
+        location.hash = '#/dashboard';
+      } else {
+        msg.textContent = 'Credenciales incorrectas.';
+      }
+    });
+    document.getElementById('demoFill').addEventListener('click', ()=>{document.getElementById('username').value='test';document.getElementById('password').value='1234'});
+
+    // POSTS: cargar más (simula paginación JavaScript)
+    const morePosts = ['Herramientas para scraping avanzado','Cómo evitar bloqueos IP','Extracción de datos con XPath'];
+    document.getElementById('loadMore').addEventListener('click', async ()=>{
+      document.getElementById('loading').classList.remove('hidden');
+      await new Promise(r=>setTimeout(r,900)); // simulamos latencia
+      const ul = document.querySelector('#postsList ul');
+      morePosts.forEach(title=>{const li = document.createElement('li');li.textContent = title;ul.appendChild(li)});
+      document.getElementById('loading').classList.add('hidden');
+    });
+
+    // Comentarios cargados por JS (invisible para scrapers que no ejecutan JS)
+    setTimeout(()=>{
+      const comments = [
+        {id:1, user:'Luis', text:'Gran artículo!'},
+        {id:2, user:'Ana', text:'Me ayudó mucho.'},
+        {id:3, user:'Marcos', text:'¿Tienen ejemplos con Selenium?'}
+      ];
+      const container = document.getElementById('comments');
+      container.classList.remove('muted');
+      container.innerHTML = '<ul>' + comments.map(c=>`<li data-comment-id="${c.id}"><strong>${c.user}:</strong> ${c.text}</li>`).join('') + '</ul>';
+      document.getElementById('commentsCount').textContent = comments.length;
+    },2000);
+
+    // Pequeño 'guardado' del estado: si 'logueado', mostramos dashboard al cargar
+    // (simula sesión sin back-end)
+    if(localStorage.getItem('fake_logged') === '1') location.hash = '#/dashboard';
+
+  </script>
+</body>
+</html>
